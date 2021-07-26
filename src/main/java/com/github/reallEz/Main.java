@@ -62,7 +62,7 @@ public class Main {
         }
     }
 
-    private static Document httpGetAndParseHtml(String link) {
+    private static Document httpGetAndParseHtml(String link) throws IOException {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         // 这是我们感兴趣的，我们只处理新浪内部的链接
         if (link.startsWith("//")) {
