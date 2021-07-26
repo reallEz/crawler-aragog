@@ -37,41 +37,62 @@ public class Main {
                 continue;
             }
 
-            if (link.contains("news.sina.cn") || "https://sina.cn/".equals(link)) {
-                // 这是我们感兴趣的，我们只处理新浪内部的链接
-                if (link.startsWith("//")) {
-                    link = "https:" + link;
-                }
-                System.out.println("link = " + link);
-                CloseableHttpClient httpclient = HttpClients.createDefault();
-                HttpGet httpGet = new HttpGet(link);
-                httpGet.setHeader("use-Agent", "mozilla/5.0 (macintosh; intel mac os x 10_15_7) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.164 safari/537.36");
+            // 我们只关心 news.sina 的，并且要排除登录页面
+            if (isInterestingLink(link)) {
+                Document doc = httpGetAndParseHtml(link);
+                doc.select("a").stream().map(aTag -> aTag.attr("href")).forEach(linkPool::add);
 
-                try (CloseableHttpResponse response = httpclient.execute(httpGet)) {
-                    System.out.println(response.getStatusLine());
-                    HttpEntity entity = response.getEntity();
-                    String html = EntityUtils.toString(entity);
-                    Document doc = Jsoup.parse(html);
-                    ArrayList<Element> links = doc.select("a");
+                // 假如这是一个新闻的详情页面，就存入数据库，否则就什么都不做
+                storeIntoDatabaseIfItIsNewsPage(doc);
+                processedLink.add(link);
 
-                    for (Element aTag : links) {
-                        linkPool.add(aTag.attr("href"));
-                    }
-
-
-                    // 假如这是一个新闻的详情页面，就存入数据库，否则就什么都不做
-                    ArrayList<Element> articleTags = doc.select("article");
-                    if (!articleTags.isEmpty()) {
-                        for (Element articleTag : articleTags) {
-                            String title = articleTags.get(0).child(0).html();
-                            System.out.println("title = " + title);
-                        }
-                    }
-                    processedLink.add(link);
-                }
             } else {
                 // 这是我们不感兴趣的，不处理它
             }
         }
+    }
+
+    private static void storeIntoDatabaseIfItIsNewsPage(Document doc) {
+        ArrayList<Element> articleTags = doc.select("article");
+        if (!articleTags.isEmpty()) {
+            for (Element articleTag : articleTags) {
+                String title = articleTags.get(0).child(0).html();
+                System.out.println("title = " + title);
+            }
+        }
+    }
+
+    private static Document httpGetAndParseHtml(String link) {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        // 这是我们感兴趣的，我们只处理新浪内部的链接
+        if (link.startsWith("//")) {
+            link = "https:" + link;
+        }
+        System.out.println("link = " + link);
+        HttpGet httpGet = new HttpGet(link);
+        httpGet.setHeader("use-Agent", "mozilla/5.0 (macintosh; intel mac os x 10_15_7) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.164 safari/537.36");
+
+        try (CloseableHttpResponse response = httpclient.execute(httpGet)) {
+            System.out.println(response.getStatusLine());
+            HttpEntity entity = response.getEntity();
+            String html = EntityUtils.toString(entity);
+            return Jsoup.parse(html);
+        }
+    }
+
+    private static boolean isInterestingLink(String link) {
+        return (isNewsPage(link) || isIndexPage(link)) && isNotLoginPage(link);
+    }
+
+    private static boolean isIndexPage(String link) {
+        return "https://sina.cn/".equals(link);
+    }
+
+    private static boolean isNewsPage(String link) {
+        return link.contains("news.sina.cn");
+    }
+
+    private static boolean isNotLoginPage(String link) {
+        return !link.contains("passport.sina.cn");
     }
 }
