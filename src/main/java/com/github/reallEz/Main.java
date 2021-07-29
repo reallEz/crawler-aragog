@@ -18,11 +18,30 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.Collectors;
 
 public class Main {
     private static final String USER_NAME = "root";
     private static final String PASSWORD = "root";
+
+
+    private static String getNextLink(Connection connection, String sql) throws SQLException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
+            if (resultSet.next()) {
+                return resultSet.getString(2);
+            }
+        }
+        return null;
+    }
+
+    private static String getNextLinkThenDelete (Connection connection) throws SQLException {
+        String link = getNextLink(connection, "SELECT * FROM LINK_TO_BE_PROCESSED LIMIT 1");
+        if (link != null) {
+            updateDatabase(connection, link, "DELETE FROM LINK_TO_BE_PROCESSED WHERE LINK = ?");
+        }
+        // 处理之后从池子（包括数据库）中删掉
+        return link;
+    }
 
     @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
     public static void main(String[] args) throws IOException, SQLException {
@@ -30,31 +49,22 @@ public class Main {
                 DriverManager.getConnection(
                         "jdbc:h2:file:/Users/zhulian/Documents/hcsp/crawler-aragog/news", USER_NAME, PASSWORD);
 
-        while (true) {
-            // 待处理的链接池
-            // 从数据库加载即将处理链接的代码
-            List<String> linkPool = loadUrlFromDatabase(connection, "SELECT * FROM LINK_TO_BE_PROCESSED");
-            if (linkPool.isEmpty()) {
-                break;
-            }
+        String link;
 
-            // 从待处理池子中捞出一个链接进行处理
-            // 处理之后从池子（包括数据库）中删掉
-            String link = linkPool.remove(linkPool.size() - 1);
-            try (PreparedStatement statement =
-                         connection.prepareStatement("DELETE FROM LINK_TO_BE_PROCESSED WHERE LINK = ?")) {
-                statement.setString(1, link);
-                statement.executeUpdate();
-            }
+        // 先从数据库中拿出来一个链接（拿出来并删除之），准备处理之
+        while ((link = getNextLinkThenDelete(connection)) != null) {
+
+            // 询问数据库是不是处理过了
             if (isLinkProcessed(connection, link)) {
                 continue;
             }
             if (isInterestingLink(link)) {
+                System.out.println("link = " + link);
                 Document doc = httpGetAndParseHtml(link);
 
                 parseUrlsFromPageAndStoreIntoDatabase(connection, doc);
-                storeIntoDatabaseIfItIsNewsPage(doc);
-                insertLinkIntoDatabase(connection, link, "INSERT INTO LINK_ALREADY_PROCESSED \n" +
+                storeIntoDatabaseIfItIsNewsPage(connection, doc, link);
+                updateDatabase(connection, link, "INSERT INTO LINK_ALREADY_PROCESSED \n" +
                         "(LINK)\n" +
                         "VALUES (?)");
             }
@@ -65,9 +75,15 @@ public class Main {
     private static void parseUrlsFromPageAndStoreIntoDatabase(Connection connection, Document doc) throws SQLException {
         for (Element aTag : doc.select("a")) {
             String href = aTag.attr("href");
-            insertLinkIntoDatabase(connection, href, "INSERT INTO LINK_TO_BE_PROCESSED \n" +
-                    "(LINK)\n" +
-                    "VALUES (?)");
+
+            if (href.startsWith("//")) {
+                href = "https:" + href;
+            }
+            if (!href.toLowerCase().startsWith("javascript")) {
+                updateDatabase(connection, href, "INSERT INTO LINK_TO_BE_PROCESSED \n" +
+                        "(LINK)\n" +
+                        "VALUES (?)");
+            }
         }
     }
 
@@ -88,7 +104,7 @@ public class Main {
         return false;
     }
 
-    private static void insertLinkIntoDatabase(Connection connection, String link, String sql) throws SQLException {
+    private static void updateDatabase(Connection connection, String link, String sql) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, link);
             statement.executeUpdate();
@@ -97,12 +113,23 @@ public class Main {
 
 
     // 假如这是一个新闻的详情页面，就存入数据库，否则就什么都不做
-    private static void storeIntoDatabaseIfItIsNewsPage(Document doc) {
+    private static void storeIntoDatabaseIfItIsNewsPage(Connection connection, Document doc, String link) throws SQLException {
         ArrayList<Element> articleTags = doc.select("article");
         if (!articleTags.isEmpty()) {
             for (Element articleTag : articleTags) {
                 String title = articleTags.get(0).child(0).html();
+                String content =  articleTag.select("p").stream().map(Element::text).collect(Collectors.joining("\n"));
                 System.out.println("title = " + title);
+                try (PreparedStatement statement = connection.prepareStatement("INSERT INTO NEWS \n" +
+                        "(URL, TITLE, CONTENT, CREATED_AT, MODIFY_AT) \n" +
+                        "VALUES \n" +
+                        "(?, ?, ?, now(), now())"
+                )) {
+                    statement.setString(1, link);
+                    statement.setString(2, title);
+                    statement.setString(3, content);
+                    statement.executeUpdate();
+                }
             }
         }
     }
@@ -110,29 +137,16 @@ public class Main {
     private static Document httpGetAndParseHtml(String link) throws IOException {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         // 这是我们感兴趣的，我们只处理新浪内部的链接
-        if (link.startsWith("//")) {
-            link = "https:" + link;
-        }
+
         System.out.println("link = " + link);
         HttpGet httpGet = new HttpGet(link);
         httpGet.setHeader("use-Agent", "mozilla/5.0 (macintosh; intel mac os x 10_15_7) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.164 safari/537.36");
 
         try (CloseableHttpResponse response = httpclient.execute(httpGet)) {
-            System.out.println(response.getStatusLine());
             HttpEntity entity = response.getEntity();
             String html = EntityUtils.toString(entity);
             return Jsoup.parse(html);
         }
-    }
-
-    private static List<String> loadUrlFromDatabase(Connection connection, String sql) throws SQLException {
-        List<String> results = new ArrayList<>();
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                results.add(resultSet.getString(2));
-            }
-        }
-        return results;
     }
 
     // 我们只关心 news.sina 的，并且要排除登录页面
