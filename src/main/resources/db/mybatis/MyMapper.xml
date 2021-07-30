@@ -30,7 +30,7 @@
     <insert id="insertLink" parameterType="HashMap">
         INSERT INTO
         <choose>
-            <when test="tableName == LINK_ALREADY_PROCESSED">
+            <when test="tableName == 'LINK_ALREADY_PROCESSED'">
                 LINK_ALREADY_PROCESSED
             </when>
             <otherwise>
