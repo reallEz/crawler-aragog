@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.reallEz.myMapper">
+    <select id="selectNextAvailableLink" resultType="String">
+        SELECT LINK
+        FROM LINK_TO_BE_PROCESSED
+        LIMIT 1
+    </select>
+
+    <delete id="deleteLink" parameterType="String">
+        DELETE
+        FROM LINK_TO_BE_PROCESSED
+        WHERE LINK = #{LINK}
+    </delete>
+
+    <insert id="insertNews" parameterType="com.github.reallEz.News">
+        INSERT INTO NEWS
+            (URL, TITLE, CONTENT, CREATED_AT, MODIFY_AT)
+        VALUES (#{url}, #{title}, #{content}, now(), now())
+    </insert>
+
+    <select id="countLink" parameterType="String" resultType="int">
+        SELECT count(LINK)
+        FROM LINK_ALREADY_PROCESSED
+        WHERE LINK = #{LINK}
+    </select>
+
+    <insert id="insertLink" parameterType="HashMap">
+        INSERT INTO
+        <choose>
+            <when test="tableName == LINK_ALREADY_PROCESSED">
+                LINK_ALREADY_PROCESSED
+            </when>
+            <otherwise>
+                LINK_TO_BE_PROCESSED
+            </otherwise>
+        </choose>
+        (LINK) VALUES (#{LINK})
+    </insert>
+</mapper>

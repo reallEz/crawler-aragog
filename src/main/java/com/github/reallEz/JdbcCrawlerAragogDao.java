@@ -24,7 +24,7 @@ public class JdbcCrawlerAragogDao implements CrawlerAragogDao {
         }
     }
 
-    public String getNextLink(String sql) throws SQLException {
+    private String getNextLink(String sql) throws SQLException {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
                 return resultSet.getString(2);
@@ -33,6 +33,7 @@ public class JdbcCrawlerAragogDao implements CrawlerAragogDao {
         return null;
     }
 
+    @Override
     public String getNextLinkThenDelete() throws SQLException {
         String link = getNextLink("SELECT * FROM LINK_TO_BE_PROCESSED LIMIT 1");
         if (link != null) {
@@ -42,13 +43,14 @@ public class JdbcCrawlerAragogDao implements CrawlerAragogDao {
         return link;
     }
 
-    public void updateDatabase(String link, String sql) throws SQLException {
+    private void updateDatabase(String link, String sql) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, link);
             statement.executeUpdate();
         }
     }
 
+    @Override
     public void insertNewsIntoDatabase(String link, String title, String content) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("INSERT INTO NEWS \n" +
                 "(URL, TITLE, CONTENT, CREATED_AT, MODIFY_AT) \n" +
@@ -62,6 +64,7 @@ public class JdbcCrawlerAragogDao implements CrawlerAragogDao {
         }
     }
 
+    @Override
     public boolean isLinkProcessed(String link) throws SQLException {
         ResultSet resultSet = null;
         try (PreparedStatement statement =
@@ -77,5 +80,15 @@ public class JdbcCrawlerAragogDao implements CrawlerAragogDao {
             }
         }
         return false;
+    }
+
+    @Override
+    public void insertProcessedLink(String link) {
+
+    }
+
+    @Override
+    public void insertLinkToBeProcessed(String link) {
+
     }
 }
