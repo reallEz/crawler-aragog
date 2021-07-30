@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class CrawlerAragog {
-    private final CrawlerAragogDao dao = new JdbcCrawlerAragogDao();
+    private final CrawlerAragogDao dao = new MybatisCrawlerAragogDao();
 
     public void run () throws SQLException, IOException {
          String link;
@@ -32,9 +32,7 @@ public class CrawlerAragog {
                 Document doc = httpGetAndParseHtml(link);
                 parseUrlsFromPageAndStoreIntoDatabase(doc);
                 storeIntoDatabaseIfItIsNewsPage(doc, link);
-                dao.updateDatabase(link, "INSERT INTO LINK_ALREADY_PROCESSED \n" +
-                        "(LINK)\n" +
-                        "VALUES (?)");
+                dao.insertProcessedLink(link);
             }
         }
     }
@@ -45,14 +43,12 @@ public class CrawlerAragog {
 
     private void parseUrlsFromPageAndStoreIntoDatabase(Document doc) throws SQLException {
         for (Element aTag : doc.select("a")) {
-            String href = aTag.attr("href");
-            if (href.startsWith("//")) {
-                href = "https:" + href;
+            String link = aTag.attr("href");
+            if (link.startsWith("//")) {
+                link = "https:" + link;
             }
-            if (!href.toLowerCase().startsWith("javascript")) {
-                dao.updateDatabase(href, "INSERT INTO LINK_TO_BE_PROCESSED \n" +
-                        "(LINK)\n" +
-                        "VALUES (?)");
+            if (!link.toLowerCase().startsWith("javascript")) {
+                dao.insertLinkToBeProcessed(link);
             }
         }
     }
