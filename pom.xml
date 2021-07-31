@@ -52,6 +52,13 @@
         </profile>
     </profiles>
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
+        <!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.17</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/org.mybatis/mybatis -->
         <dependency>
             <groupId>org.mybatis</groupId>
@@ -156,7 +163,7 @@
                 <artifactId>flyway-maven-plugin</artifactId>
                 <version>5.2.4</version>
                 <configuration>
-                    <url>jdbc:h2:file:/Users/zhulian/Documents/hcsp/crawler-aragog/news</url>
+                    <url>jdbc:mysql://localhost:3306/news?useSSL=false&amp;characterEncoding=utf-8</url>
                     <user>root</user>
                     <password>root</password>
                 </configuration>
