@@ -1,5 +1,6 @@
 package com.github.reallEz;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -15,30 +16,36 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
-public class CrawlerAragog {
-    private final CrawlerAragogDao dao = new MybatisCrawlerAragogDao();
+public class CrawlerAragog extends Thread {
+    private final CrawlerAragogDao dao;
 
-    public void run () throws SQLException, IOException {
-         String link;
-
-        // 先从数据库中拿出来一个链接（拿出来并删除之），准备处理之
-        while ((link = dao.getNextLinkThenDelete()) != null) {
-            // 询问数据库是不是处理过了
-            if (dao.isLinkProcessed(link)) {
-                continue;
-            }
-            if (isInterestingLink(link)) {
-                System.out.println("link = " + link);
-                Document doc = httpGetAndParseHtml(link);
-                parseUrlsFromPageAndStoreIntoDatabase(doc);
-                storeIntoDatabaseIfItIsNewsPage(doc, link);
-                dao.insertProcessedLink(link);
-            }
-        }
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
+    public CrawlerAragog(CrawlerAragogDao dao) {
+        this.dao = dao;
     }
 
-    public static void main(String[] args) throws IOException, SQLException {
-        new CrawlerAragog().run();
+    @Override
+    public void run() {
+        try {
+            String link;
+
+            // 先从数据库中拿出来一个链接（拿出来并删除之），准备处理之
+            while ((link = dao.getNextLinkThenDelete()) != null) {
+                // 询问数据库是不是处理过了
+                if (dao.isLinkProcessed(link)) {
+                    continue;
+                }
+                if (isInterestingLink(link)) {
+                    System.out.println("link = " + link);
+                    Document doc = httpGetAndParseHtml(link);
+                    parseUrlsFromPageAndStoreIntoDatabase(doc);
+                    storeIntoDatabaseIfItIsNewsPage(doc, link);
+                    dao.insertProcessedLink(link);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void parseUrlsFromPageAndStoreIntoDatabase(Document doc) throws SQLException {
@@ -59,7 +66,7 @@ public class CrawlerAragog {
         if (!articleTags.isEmpty()) {
             for (Element articleTag : articleTags) {
                 String title = articleTags.get(0).child(0).html();
-                String content =  articleTag.select("p").stream().map(Element::text).collect(Collectors.joining("\n"));
+                String content = articleTag.select("p").stream().map(Element::text).collect(Collectors.joining("\n"));
                 System.out.println("title = " + title);
                 dao.insertNewsIntoDatabase(link, title, content);
             }
