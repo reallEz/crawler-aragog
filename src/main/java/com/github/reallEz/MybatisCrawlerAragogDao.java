@@ -25,7 +25,7 @@ public class MybatisCrawlerAragogDao implements CrawlerAragogDao {
     }
 
     @Override
-    public String getNextLinkThenDelete() throws SQLException {
+    public synchronized String getNextLinkThenDelete() {
         try (SqlSession session = sqlSessionFactory.openSession(true)) {
             String link = session.selectOne("com.github.reallEz.myMapper.selectNextAvailableLink");
             if (link != null) {
