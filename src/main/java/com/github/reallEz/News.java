@@ -1,10 +1,14 @@
 package com.github.reallEz;
 
+import java.time.Instant;
+
 public class News {
     private Integer id;
     private String url;
     private String title;
     private String content;
+    private Instant createdAt;
+    private Instant modifyAt;
 
     public News(String url, String title, String content) {
         this.url = url;
@@ -42,5 +46,21 @@ public class News {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getModifyAt() {
+        return modifyAt;
+    }
+
+    public void setModifyAt(Instant modifyAt) {
+        this.modifyAt = modifyAt;
     }
 }
