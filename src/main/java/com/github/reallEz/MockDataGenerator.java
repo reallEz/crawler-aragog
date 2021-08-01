@@ -1,5 +1,6 @@
 package com.github.reallEz;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
@@ -9,10 +10,10 @@ import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
+@SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
 public class MockDataGenerator {
     static long start = System.currentTimeMillis();
     private static void mockData(SqlSessionFactory sqlSessionFactory, int howMany) {
