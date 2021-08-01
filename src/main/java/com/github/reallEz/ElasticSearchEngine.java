@@ -1,5 +1,6 @@
 package com.github.reallEz;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class ElasticSearchEngine {
+
+    @SuppressFBWarnings("DM_DEFAULT_ENCODING")
     public static void main(String[] args) throws IOException {
         // read sql from powerline
         while (true) {
