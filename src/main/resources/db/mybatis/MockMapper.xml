@@ -12,4 +12,9 @@
         SELECT URL, TITLE, CONTENT, CREATED_AT, MODIFY_AT
         FROM NEWS
     </select>
+
+    <select id="selectSeedNews" resultType="com.github.reallEz.News">
+        SELECT URL, TITLE, CONTENT, CREATED_AT, MODIFY_AT
+        FROM NEWS LIMIT 5000
+    </select>
 </mapper>
